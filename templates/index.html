@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitHub Repo Analyzer</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>GitHub Repository Analyzer</h1>
+        <div class="input-section">
+            <input type="text" id="repoUrl" placeholder="Enter GitHub Repo URL (e.g., https://github.com/user/repo)">
+            <button id="analyzeButton">Analyze</button>
+        </div>
+
+        <div id="loading" class="loading-message" style="display:none;">
+            <p>Fetching data, please wait...</p>
+        </div>
+
+        <div id="error" class="error-message" style="display:none;">
+            <!-- Error messages will be displayed here -->
+        </div>
+
+        <div id="results" class="results-section" style="display:none;">
+            <div id="repoDetailsSection">
+                <h2>Repository Details</h2>
+                <div id="repoDetails"></div>
+            </div>
+
+            <div id="commitActivitySection">
+                <h2>Recent Commit Activity (Last 5)</h2>
+                <div id="commitActivity"></div>
+            </div>
+
+            <div id="contributorStatsSection">
+                <h2>Top Contributor Stats (Top 5)</h2>
+                <div id="contributorStats"></div>
+            </div>
+        </div>
+    </div>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
