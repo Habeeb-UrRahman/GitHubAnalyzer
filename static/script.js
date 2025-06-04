@@ -8,6 +8,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const repoDetailsDiv = document.getElementById('repoDetails');
     const commitActivityDiv = document.getElementById('commitActivity');
     const contributorStatsDiv = document.getElementById('contributorStats');
+    const languageStatsDiv = document.getElementById('languageStats');
+    const openIssuesDiv = document.getElementById('openIssues');
+    const latestReleaseDiv = document.getElementById('latestRelease');
+    const commitFrequencyDiv = document.getElementById('commitFrequency');
 
     analyzeButton.addEventListener('click', analyzeRepo);
     repoUrlInput.addEventListener('keypress', function(event) {
@@ -28,6 +32,10 @@ document.addEventListener('DOMContentLoaded', () => {
         repoDetailsDiv.innerHTML = '';
         commitActivityDiv.innerHTML = '';
         contributorStatsDiv.innerHTML = '';
+        languageStatsDiv.innerHTML = '';
+        openIssuesDiv.innerHTML = '';
+        latestReleaseDiv.innerHTML = '';
+        commitFrequencyDiv.innerHTML = '';
 
         if (!repoUrl) {
             showError("Please enter a GitHub repository URL.");
@@ -77,6 +85,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 displayRepoDetails(data.repo_details);
                 displayCommitActivity(data.commit_activity);
                 displayContributorStats(data.contributor_stats);
+                displayLanguages(data.languages);
+                displayOpenIssues(data.open_issues_list);
+                displayLatestRelease(data.latest_release);
+                displayCommitFrequency(data.commit_frequency);
                 resultsDiv.style.display = 'block';
             }
 
@@ -182,5 +194,122 @@ document.addEventListener('DOMContentLoaded', () => {
              .replace(/>/g, "&gt;")
              .replace(/"/g, "&quot;")
              .replace(/'/g, "&#039;");
+    }
+
+    function displayLanguages(languages) {
+        const section = document.getElementById('languageStatsSection');
+        if (!languages || languages.error || Object.keys(languages).length === 0) {
+            section.classList.add('hidden');
+            if (languages && languages.error) showErrorInResults('languageStats', `Could not load languages: ${languages.error}`);
+            else if (!languages || Object.keys(languages).length === 0) showErrorInResults('languageStats', 'No language data available.');
+            return;
+        }
+        section.classList.remove('hidden');
+        
+        let totalBytes = 0;
+        for (const lang in languages) {
+            totalBytes += languages[lang];
+        }
+
+        if (totalBytes === 0) {
+             showErrorInResults('languageStats', 'No language data available (0 bytes detected).');
+             return;
+        }
+
+        const ul = document.createElement('ul');
+        ul.className = 'language-list';
+        Object.entries(languages).sort(([,a],[,b]) => b-a).forEach(([lang, bytes]) => {
+            const percentage = ((bytes / totalBytes) * 100).toFixed(2);
+            const li = document.createElement('li');
+            li.innerHTML = `
+                <span class="lang-name">${escapeHtml(lang)}</span>
+                <span class="lang-percentage">${percentage}%</span>
+                <div class="lang-bar-container">
+                    <div class="lang-bar" style="width: ${percentage}%;"></div>
+                </div>
+            `;
+            ul.appendChild(li);
+        });
+        languageStatsDiv.innerHTML = '';
+        languageStatsDiv.appendChild(ul);
+    }
+
+    function displayOpenIssues(issues) {
+        const section = document.getElementById('openIssuesSection');
+        if (!issues || issues.error || (Array.isArray(issues) && issues.length === 0)) {
+            section.classList.add('hidden');
+            if (issues && issues.error) showErrorInResults('openIssues', `Could not load open issues: ${issues.error}`);
+            else if (!issues || (Array.isArray(issues) && issues.length === 0)) showErrorInResults('openIssues', 'No open issues found.');
+            return;
+        }
+        section.classList.remove('hidden');
+        const ul = document.createElement('ul');
+        issues.forEach(issue => {
+            const li = document.createElement('li');
+            li.className = 'issue-item';
+            li.innerHTML = `
+                <a href="${escapeHtml(issue.url)}" target="_blank" class="issue-title">#${issue.number}: ${escapeHtml(issue.title)}</a>
+                <p class="issue-details">Opened by ${escapeHtml(issue.user)} on ${new Date(issue.created_at).toLocaleDateString()}</p>
+            `;
+            ul.appendChild(li);
+        });
+        openIssuesDiv.innerHTML = '';
+        openIssuesDiv.appendChild(ul);
+    }
+
+    function displayLatestRelease(release) {
+        const section = document.getElementById('latestReleaseSection');
+        if (!release || release.error || release.message) { // release.message for 'No releases found'
+            section.classList.add('hidden');
+            if (release && release.error) showErrorInResults('latestRelease', `Could not load latest release: ${release.error}`);
+            else if (release && release.message) showErrorInResults('latestRelease', release.message);
+            else showErrorInResults('latestRelease', 'No release information available.');
+            return;
+        }
+        section.classList.remove('hidden');
+        let bodyHtml = 'No description provided.';
+        if (release.body) {
+            // Basic markdown to HTML conversion for release body (links, simple lists)
+            // This is a very simplified version. For full markdown, a library would be better.
+            bodyHtml = escapeHtml(release.body)
+                .replace(/\n/g, '<br>')
+                .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank">$1</a>'); 
+        }
+
+        latestReleaseDiv.innerHTML = `
+            <p><strong>Release Name:</strong> ${escapeHtml(release.name || 'N/A')}</p>
+            <p><strong>Tag:</strong> <a href="${escapeHtml(release.url)}" target="_blank">${escapeHtml(release.tag_name)}</a></p>
+            <p><strong>Published:</strong> ${new Date(release.published_at).toLocaleString()}</p>
+            <div class="release-body">
+                <strong>Notes:</strong>
+                <div>${bodyHtml}</div>
+            </div>
+        `;
+    }
+
+    function displayCommitFrequency(frequencyData) {
+        const section = document.getElementById('commitFrequencySection');
+        if (!frequencyData || frequencyData.error || frequencyData.message || (Array.isArray(frequencyData) && frequencyData.length === 0)) {
+            section.classList.add('hidden');
+            if (frequencyData && frequencyData.error) showErrorInResults('commitFrequency', `Could not load commit frequency: ${frequencyData.error}`);
+            else if (frequencyData && frequencyData.message) showErrorInResults('commitFrequency', frequencyData.message);
+            else showErrorInResults('commitFrequency', 'No commit frequency data available.');
+            return;
+        }
+        section.classList.remove('hidden');
+        
+        // For a real chart, use a library like Chart.js, D3.js, etc.
+        // This is a very basic textual representation.
+        const ul = document.createElement('ul');
+        ul.className = 'frequency-list';
+        frequencyData.forEach(week => {
+            const li = document.createElement('li');
+            const weekStartDate = new Date(week.week_start_timestamp * 1000).toLocaleDateString();
+            li.innerHTML = `Week of ${weekStartDate}: <strong>${week.total_commits}</strong> commits`;
+            ul.appendChild(li);
+        });
+        commitFrequencyDiv.innerHTML = '';
+        commitFrequencyDiv.appendChild(ul);
+        // Placeholder for chart: commitFrequencyDiv.innerHTML = '<p>Chart library integration needed for visualization.</p>';
     }
 });

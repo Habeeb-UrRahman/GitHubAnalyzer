@@ -95,8 +95,8 @@ def fetch_commit_activity(owner, repo):
         return {"error": f"Request error fetching commit activity: {str(e)}"}
 
 def fetch_contributor_stats(owner, repo):
-    """Fetches top 5 contributors."""
-    url = f"{GITHUB_API_URL}/repos/{owner}/{repo}/contributors?per_page=5&anon=0" # anon=0 to exclude anonymous
+    """Fetches top 10 contributors."""
+    url = f"{GITHUB_API_URL}/repos/{owner}/{repo}/contributors?per_page=10&anon=0" # anon=0 to exclude anonymous
     try:
         response = requests.get(url, headers=get_github_headers())
         # GitHub API returns 202 if data is being computed, frontend should handle this possibility or we wait.
@@ -161,12 +161,121 @@ def analyze_repo_route(): # Renamed to avoid conflict with any 'analyze' variabl
 
     commit_activity = fetch_commit_activity(owner, repo)
     contributor_stats = fetch_contributor_stats(owner, repo)
+    languages_data = fetch_languages(owner, repo)
+    open_issues_data = fetch_open_issues(owner, repo)
+    latest_release_data = fetch_latest_release(owner, repo)
+    commit_frequency_data = fetch_commit_frequency(owner, repo)
     
     return jsonify({
         "repo_details": repo_details,
         "commit_activity": commit_activity,
-        "contributor_stats": contributor_stats
+        "contributor_stats": contributor_stats,
+        "languages": languages_data,
+        "open_issues_list": open_issues_data,
+        "latest_release": latest_release_data,
+        "commit_frequency": commit_frequency_data
     })
+
+
+def fetch_languages(owner, repo):
+    """Fetches language breakdown for the repository."""
+    url = f"{GITHUB_API_URL}/repos/{owner}/{repo}/languages"
+    try:
+        response = requests.get(url, headers=get_github_headers())
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.HTTPError as e:
+        # Handle common errors like 404 for repositories with no language data (though rare)
+        if e.response.status_code == 404:
+            return {"message": "Language data not available."}
+        return {"error": f"HTTP error fetching languages: {e.response.status_code} - {e.response.json().get('message', str(e))}"}
+    except requests.exceptions.RequestException as e:
+        return {"error": f"Request error fetching languages: {str(e)}"}
+
+def fetch_open_issues(owner, repo, count=5):
+    """Fetches a list of recent open issues."""
+    url = f"{GITHUB_API_URL}/repos/{owner}/{repo}/issues?state=open&sort=created&direction=desc&per_page={count}"
+    try:
+        response = requests.get(url, headers=get_github_headers())
+        response.raise_for_status()
+        issues_data = response.json()
+        issues = []
+        for issue_item in issues_data:
+            if not issue_item.get('pull_request'): # Filter out pull requests
+                issues.append({
+                    "title": issue_item.get("title"),
+                    "number": issue_item.get("number"),
+                    "url": issue_item.get("html_url"),
+                    "user": issue_item.get("user", {}).get("login"),
+                    "created_at": issue_item.get("created_at")
+                })
+        return issues
+    except requests.exceptions.HTTPError as e:
+        if e.response.status_code == 404: # Should not happen for issues if repo exists
+            return {"error": "Issues not found (repository might be private or issues disabled)."}
+        return {"error": f"HTTP error fetching open issues: {e.response.status_code} - {e.response.json().get('message', str(e))}"}
+    except requests.exceptions.RequestException as e:
+        return {"error": f"Request error fetching open issues: {str(e)}"}
+
+def fetch_latest_release(owner, repo):
+    """Fetches the latest release information."""
+    url = f"{GITHUB_API_URL}/repos/{owner}/{repo}/releases/latest"
+    try:
+        response = requests.get(url, headers=get_github_headers())
+        response.raise_for_status()
+        release_data = response.json()
+        return {
+            "name": release_data.get("name"),
+            "tag_name": release_data.get("tag_name"),
+            "published_at": release_data.get("published_at"),
+            "url": release_data.get("html_url"),
+            "body": release_data.get("body")
+        }
+    except requests.exceptions.HTTPError as e:
+        if e.response.status_code == 404: # Common if no releases are published
+            return {"message": "No releases found for this repository."}
+        return {"error": f"HTTP error fetching latest release: {e.response.status_code} - {e.response.json().get('message', str(e))}"}
+    except requests.exceptions.RequestException as e:
+        return {"error": f"Request error fetching latest release: {str(e)}"}
+
+def fetch_commit_frequency(owner, repo):
+    """Fetches weekly commit activity for the last year."""
+    # This endpoint provides data calculated by GitHub, might return 202 if not cached
+    url = f"{GITHUB_API_URL}/repos/{owner}/{repo}/stats/commit_activity"
+    try:
+        response = requests.get(url, headers=get_github_headers())
+        # GitHub API returns 202 if data is being computed
+        if response.status_code == 202:
+            # Retry logic could be implemented here, or just inform the user.
+            # For simplicity, we'll try a second time after a short delay.
+            # More robust: client-side polling or longer server-side wait with feedback.
+            import time
+            time.sleep(2) # Wait 2 seconds and try again
+            response = requests.get(url, headers=get_github_headers())
+            if response.status_code == 202:
+                 return {"message": "Commit frequency data is being calculated by GitHub. Please try again in a moment."}
+
+        response.raise_for_status()
+        # Data is an array of objects, each with 'days' (commits per day of week) and 'total' (commits in week), 'week' (timestamp)
+        # We'll simplify it to weekly totals for now.
+        frequency_data = response.json()
+        simplified_frequency = []
+        if isinstance(frequency_data, list):
+            for week_stat in frequency_data:
+                simplified_frequency.append({
+                    "week_start_timestamp": week_stat.get("week"),
+                    "total_commits": week_stat.get("total")
+                })
+        return simplified_frequency[-12:] # Return last 12 weeks for brevity, can be adjusted
+
+    except requests.exceptions.HTTPError as e:
+        if e.response.status_code == 204: # No content, e.g. empty repo
+            return {"message": "No commit activity data available (repository might be new or empty)."}
+        if e.response.status_code == 404:
+             return {"error": "Commit activity stats not found."}
+        return {"error": f"HTTP error fetching commit frequency: {e.response.status_code} - {e.response.json().get('message', str(e))}"}
+    except requests.exceptions.RequestException as e:
+        return {"error": f"Request error fetching commit frequency: {str(e)}"}
 
 if __name__ == '__main__':
     # For development, Flask's built-in server is fine.

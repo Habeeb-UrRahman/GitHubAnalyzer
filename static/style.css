@@ -150,7 +150,146 @@ h1 {
     color: #586069;
 }
 
+/* Grid Layout */
+.grid-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); /* Responsive grid */
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.grid-item,
+.full-width-item {
+    background-color: #f9f9f9;
+    padding: 15px;
+    border: 1px solid #e1e4e8;
+    border-radius: 6px;
+}
+
+.full-width-item {
+    grid-column: 1 / -1; /* Span full width if in a grid context, or just behave as a block */
+    margin-bottom: 20px; /* Add margin if it's the last item or between other full-width items */
+}
+
+/* Language Stats Styles */
+#languageStats ul.language-list {
+    list-style-type: none;
+    padding-left: 0;
+}
+
+#languageStats li {
+    margin-bottom: 10px;
+    font-size: 0.95em;
+}
+
+.lang-name {
+    font-weight: 500;
+    display: inline-block;
+    width: 120px; /* Adjust as needed */
+}
+
+.lang-percentage {
+    font-weight: bold;
+    color: #333;
+    display: inline-block;
+    width: 60px; /* Adjust as needed */
+    text-align: right;
+    margin-right: 10px;
+}
+
+.lang-bar-container {
+    display: inline-block;
+    width: calc(100% - 200px); /* Adjust based on name and percentage width */
+    height: 15px;
+    background-color: #e1e4e8;
+    border-radius: 3px;
+    overflow: hidden;
+    vertical-align: middle;
+}
+
+.lang-bar {
+    height: 100%;
+    background-color: #0366d6; /* GitHub blue */
+    border-radius: 3px;
+}
+
+/* Open Issues Styles */
+#openIssues ul {
+    list-style-type: none;
+    padding-left: 0;
+}
+
+#openIssues li.issue-item {
+    padding: 10px;
+    border-bottom: 1px solid #eee;
+}
+#openIssues li.issue-item:last-child {
+    border-bottom: none;
+}
+
+.issue-title {
+    display: block;
+    font-weight: 500;
+    color: #0366d6;
+    text-decoration: none;
+    margin-bottom: 4px;
+}
+.issue-title:hover {
+    text-decoration: underline;
+}
+
+.issue-details {
+    font-size: 0.85em;
+    color: #586069;
+    margin: 0;
+}
+
+/* Latest Release Styles */
+#latestRelease p {
+    margin: 5px 0 10px 0;
+}
+.release-body {
+    margin-top: 10px;
+    padding: 10px;
+    background-color: #fff;
+    border: 1px solid #e1e4e8;
+    border-radius: 4px;
+    font-size: 0.9em;
+    max-height: 200px; /* Limit height and make scrollable if needed */
+    overflow-y: auto;
+}
+.release-body div {
+    white-space: pre-wrap; /* Preserve line breaks from description */
+    word-wrap: break-word;
+}
+
+/* Commit Frequency Styles */
+#commitFrequency ul.frequency-list {
+    list-style-type: none;
+    padding-left: 0;
+    font-size: 0.9em;
+}
+
+#commitFrequency li {
+    padding: 5px 0;
+    border-bottom: 1px dashed #eee;
+}
+#commitFrequency li:last-child {
+    border-bottom: none;
+}
+
+.error-message-inline {
+    color: #cb2431;
+    font-size: 0.9em;
+    padding: 5px;
+    background-color: #ffeef0;
+    border: 1px solid rgba(203,36,49,0.2);
+    border-radius: 4px;
+    display: block;
+    margin-top: 5px;
+}
+
 /* Utility classes */
 .hidden {
-    display: none;
+    display: none !important; /* Ensure hidden overrides other display properties */
 }

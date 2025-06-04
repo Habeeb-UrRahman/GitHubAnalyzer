@@ -23,19 +23,42 @@
         </div>
 
         <div id="results" class="results-section" style="display:none;">
-            <div id="repoDetailsSection">
-                <h2>Repository Details</h2>
-                <div id="repoDetails"></div>
+            <div class="grid-container">
+                <div class="grid-item" id="repoDetailsSection">
+                    <h2>Repository Details</h2>
+                    <div id="repoDetails"></div>
+                </div>
+
+                <div class="grid-item" id="languageStatsSection">
+                    <h2>Languages Used</h2>
+                    <div id="languageStats"></div>
+                </div>
             </div>
 
-            <div id="commitActivitySection">
+            <div class="grid-container">
+                 <div class="grid-item" id="latestReleaseSection">
+                    <h2>Latest Release</h2>
+                    <div id="latestRelease"></div>
+                </div>
+                <div class="grid-item" id="openIssuesSection">
+                    <h2>Recent Open Issues (Max 5)</h2>
+                    <div id="openIssues"></div>
+                </div>
+            </div>
+
+            <div id="commitActivitySection" class="full-width-item">
                 <h2>Recent Commit Activity (Last 5)</h2>
                 <div id="commitActivity"></div>
             </div>
 
-            <div id="contributorStatsSection">
-                <h2>Top Contributor Stats (Top 5)</h2>
+            <div id="contributorStatsSection" class="full-width-item">
+                <h2>Top Contributor Stats (Top 10)</h2>
                 <div id="contributorStats"></div>
+            </div>
+
+            <div id="commitFrequencySection" class="full-width-item">
+                <h2>Commit Frequency (Last 12 Weeks)</h2>
+                <div id="commitFrequency"></div>
             </div>
         </div>
     </div>
