@@ -3,30 +3,29 @@ import requests
 from flask import Flask, request, jsonify, render_template
 from dotenv import load_dotenv
 
-load_dotenv() # Load environment variables from .env file
+load_dotenv()
 
 app = Flask(__name__)
 
 GITHUB_API_URL = "https://api.github.com"
-# It's good practice to use a User-Agent header
-# GITHUB_USER_AGENT = "GitHubRepoAnalyzer/1.0 (YourNameOrAppName)" # Optional: Replace with your info
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 
+# Constructs headers for GitHub API requests, including authorization if a token is present.
 def get_github_headers():
     headers = {
         "Accept": "application/vnd.github.v3+json",
-        # "User-Agent": GITHUB_USER_AGENT # Optional
     }
     if GITHUB_TOKEN:
         headers["Authorization"] = f"token {GITHUB_TOKEN}"
     return headers
 
+# Fetches basic repository metadata (name, stars, forks, etc.).
 def fetch_repo_metadata(owner, repo):
     """Fetches basic repository metadata."""
     url = f"{GITHUB_API_URL}/repos/{owner}/{repo}"
     try:
         response = requests.get(url, headers=get_github_headers())
-        response.raise_for_status() # Raises an HTTPError for bad responses (4XX or 5XX)
+        response.raise_for_status()
         data = response.json()
         return {
             "name": data.get("name"),
@@ -58,6 +57,7 @@ def fetch_repo_metadata(owner, repo):
     except requests.exceptions.RequestException as e:
         return {"error": f"Request error fetching repo metadata: {str(e)}"}
 
+# Fetches recent commit activity (last 5 commits).
 def fetch_commit_activity(owner, repo):
     """Fetches the last 5 commits for simplicity."""
     url = f"{GITHUB_API_URL}/repos/{owner}/{repo}/commits?per_page=5"
@@ -94,13 +94,13 @@ def fetch_commit_activity(owner, repo):
     except requests.exceptions.RequestException as e:
         return {"error": f"Request error fetching commit activity: {str(e)}"}
 
+# Fetches top 10 contributors to the repository.
 def fetch_contributor_stats(owner, repo):
     """Fetches top 10 contributors."""
-    url = f"{GITHUB_API_URL}/repos/{owner}/{repo}/contributors?per_page=10&anon=0" # anon=0 to exclude anonymous
+    url = f"{GITHUB_API_URL}/repos/{owner}/{repo}/contributors?per_page=10&anon=0"
     try:
         response = requests.get(url, headers=get_github_headers())
-        # GitHub API returns 202 if data is being computed, frontend should handle this possibility or we wait.
-        # For simplicity, we'll treat 202 as data not yet ready / or just proceed if it returns JSON.
+        # Handle 202: contributor data is being calculated by GitHub.
         if response.status_code == 202:
             return {"message": "Contributor data is being calculated by GitHub. Please try again shortly."}
         
@@ -125,8 +125,8 @@ def fetch_contributor_stats(owner, repo):
         except ValueError:
             error_message += f" - {e.response.text[:100]}"
 
-        if e.response.status_code == 204: # No content, e.g., no contributors
-            return [] # Return empty list, not an error
+        if e.response.status_code == 204:
+            return []
         if e.response.status_code == 404:
             return {"error": "Contributor data not found (repository might be private or have no contributors)."}
         elif e.response.status_code == 403:
@@ -138,12 +138,14 @@ def fetch_contributor_stats(owner, repo):
     except requests.exceptions.RequestException as e:
         return {"error": f"Request error fetching contributor stats: {str(e)}"}
 
+# Serves the main HTML page.
 @app.route('/')
 def index():
     return render_template('index.html')
 
+# API endpoint to analyze a GitHub repository.
 @app.route('/analyze', methods=['POST'])
-def analyze_repo_route(): # Renamed to avoid conflict with any 'analyze' variable/import
+def analyze_repo_route():
     data = request.get_json()
     owner = data.get('owner')
     repo = data.get('repo')
@@ -152,10 +154,11 @@ def analyze_repo_route(): # Renamed to avoid conflict with any 'analyze' variabl
         return jsonify({"error": "Owner and repository name are required."}), 400
 
     repo_details = fetch_repo_metadata(owner, repo)
-    # If fetching basic repo details fails (e.g., repo not found, critical rate limit), 
-    # return early with that error.
+
+    # Return early if fetching basic repo details fails (e.g., repo not found).
     if isinstance(repo_details, dict) and repo_details.get("error") and "Repository not found" in repo_details.get("error"):
         return jsonify({"error": repo_details["error"]}), 404
+    # Return early if rate limit is exceeded during initial metadata fetch.
     if isinstance(repo_details, dict) and repo_details.get("error") and "rate limit exceeded" in repo_details.get("error").lower():
          return jsonify({"error": repo_details["error"]}), 429 # Too Many Requests
 
@@ -177,6 +180,7 @@ def analyze_repo_route(): # Renamed to avoid conflict with any 'analyze' variabl
     })
 
 
+# Fetches the programming language breakdown for the repository.
 def fetch_languages(owner, repo):
     """Fetches language breakdown for the repository."""
     url = f"{GITHUB_API_URL}/repos/{owner}/{repo}/languages"
@@ -185,13 +189,13 @@ def fetch_languages(owner, repo):
         response.raise_for_status()
         return response.json()
     except requests.exceptions.HTTPError as e:
-        # Handle common errors like 404 for repositories with no language data (though rare)
         if e.response.status_code == 404:
             return {"message": "Language data not available."}
         return {"error": f"HTTP error fetching languages: {e.response.status_code} - {e.response.json().get('message', str(e))}"}
     except requests.exceptions.RequestException as e:
         return {"error": f"Request error fetching languages: {str(e)}"}
 
+# Fetches a specified number of recent open issues (default 5), excluding pull requests.
 def fetch_open_issues(owner, repo, count=5):
     """Fetches a list of recent open issues."""
     url = f"{GITHUB_API_URL}/repos/{owner}/{repo}/issues?state=open&sort=created&direction=desc&per_page={count}"
@@ -217,8 +221,9 @@ def fetch_open_issues(owner, repo, count=5):
     except requests.exceptions.RequestException as e:
         return {"error": f"Request error fetching open issues: {str(e)}"}
 
+# Fetches details of the latest release for the repository.
 def fetch_latest_release(owner, repo):
-    """Fetches the latest release information."""
+    """Fetches the latest release information for the repository."""
     url = f"{GITHUB_API_URL}/repos/{owner}/{repo}/releases/latest"
     try:
         response = requests.get(url, headers=get_github_headers())
@@ -238,13 +243,14 @@ def fetch_latest_release(owner, repo):
     except requests.exceptions.RequestException as e:
         return {"error": f"Request error fetching latest release: {str(e)}"}
 
+# Fetches weekly commit activity for the last year.
 def fetch_commit_frequency(owner, repo):
     """Fetches weekly commit activity for the last year."""
     # This endpoint provides data calculated by GitHub, might return 202 if not cached
     url = f"{GITHUB_API_URL}/repos/{owner}/{repo}/stats/commit_activity"
     try:
         response = requests.get(url, headers=get_github_headers())
-        # GitHub API returns 202 if data is being computed
+        # Handle 202: commit frequency data is being calculated by GitHub.
         if response.status_code == 202:
             # Retry logic could be implemented here, or just inform the user.
             # For simplicity, we'll try a second time after a short delay.
@@ -266,18 +272,23 @@ def fetch_commit_frequency(owner, repo):
                     "week_start_timestamp": week_stat.get("week"),
                     "total_commits": week_stat.get("total")
                 })
-        return simplified_frequency[-12:] # Return last 12 weeks for brevity, can be adjusted
+        return simplified_frequency[-12:] # Return last 12 weeks
 
     except requests.exceptions.HTTPError as e:
-        if e.response.status_code == 204: # No content, e.g. empty repo
-            return {"message": "No commit activity data available (repository might be new or empty)."}
+        if e.response.status_code == 204: # No content, e.g. empty repo or stats not yet computed
+            return {"message": "No commit activity data available (repository might be new or empty, or data is being computed)."}
         if e.response.status_code == 404:
              return {"error": "Commit activity stats not found."}
         return {"error": f"HTTP error fetching commit frequency: {e.response.status_code} - {e.response.json().get('message', str(e))}"}
     except requests.exceptions.RequestException as e:
         return {"error": f"Request error fetching commit frequency: {str(e)}"}
 
+# if __name__ == '__main__':
+#     # For development, Flask's built-in server is fine.
+#     # For production, use a WSGI server like Gunicorn or Waitress.
+#     app.run(debug=True) # debug=True enables auto-reloading and debugger
+
 if __name__ == '__main__':
-    # For development, Flask's built-in server is fine.
-    # For production, use a WSGI server like Gunicorn or Waitress.
-    app.run(debug=True) # debug=True enables auto-reloading and debugger
+    # For development, Flask’s built-in server is fine.
+    # Bind to 0.0.0.0 so Docker can route traffic into the container.
+    app.run(host='0.0.0.0', port=5000, debug=True)

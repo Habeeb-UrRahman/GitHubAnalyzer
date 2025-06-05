@@ -1,0 +1,26 @@
+# Git
+.git
+.gitignore
+
+# Docker
+Dockerfile
+.dockerignore
+
+# Python virtual environment
+venv
+.venv
+env
+*.pyc
+__pycache__
+
+# IDE / Editor specific
+.vscode
+.idea
+*.swp
+
+# OS specific
+.DS_Store
+Thumbs.db
+
+# Secrets - GITHUB_TOKEN will be passed as an environment variable
+.env
