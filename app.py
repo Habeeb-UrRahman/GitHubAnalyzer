@@ -283,11 +283,6 @@ def fetch_commit_frequency(owner, repo):
     except requests.exceptions.RequestException as e:
         return {"error": f"Request error fetching commit frequency: {str(e)}"}
 
-# if __name__ == '__main__':
-#     # For development, Flask's built-in server is fine.
-#     # For production, use a WSGI server like Gunicorn or Waitress.
-#     app.run(debug=True) # debug=True enables auto-reloading and debugger
-
 if __name__ == '__main__':
     # For development, Flask’s built-in server is fine.
     # Bind to 0.0.0.0 so Docker can route traffic into the container.
